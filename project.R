@@ -64,23 +64,26 @@ final.data <- transform(final.data,
 final.data$School_type[final.data$School_type == 1] <- "Public"
 final.data$School_type[final.data$School_type == 2] <- "Private"
 
-drop.cols <- c("FICE", "College.name", "State")
-no.id.data <- final.data[, !(names(final.data) %in% drop.cols)]
+# Data without college/state columns
+drop <- c("College.name", "State")
+no.id.data <- final.data[, !(names(final.data) %in% drop)]
 
-# For Overall Model
-# final.data$School_type <- as.factor(final.data$School_type)
-# final.data$School_type <- as.numeric(final.data$School_type)
+# Creates dataframe with school type as a numeric
+school.type.data <- final.data
+school.type.data$School_type <- as.factor(school.type.data$School_type)
+school.type.data$School_type <- as.numeric(school.type.data$School_type)
 
 sapply(final.data, class)  # Check that relevant columns are numeric
                         
-# Separate data into public/private schools
+# Add total tuition = Instate + Outstate tuition column to data
 Total_tuition <- rowSums(final.data[, c("Instate_tuition", "Outstate_tuition")])
 final.data <- cbind(final.data, Total_tuition)  # Adds total tuition column to data
 
+# Separate data into public/private schools
 public.data <- subset(final.data, School_type == "Public")
 private.data <- subset(final.data, School_type == "Private")
 
-# NOTE: AK = ARKANSAS only has 1 data point
+# NOTE: AK, AZ, HI, WY only have 1 data point
 
 ### Summary statistics ###
 
@@ -88,7 +91,12 @@ private.data <- subset(final.data, School_type == "Private")
 ggplot(final.data, aes(x=School_type, y=Grad_rate, fill=School_type)) +
   geom_boxplot() + guides(fill=FALSE) +
   stat_summary(fun.y=mean, geom="point", shape=1, size=5) +
-  xlab("School Type") + ylab("Graduation rate") 
+  xlab("School Type") + ylab("Graduation rate") + 
+  ggtitle("Graduation Rate vs School Type")
+
+# Creates five-number summary of graduation rates
+summary(public.data$Grad_rate)
+summary(private.data$Grad_rate)
 
 # Calculates the average graduation rate for each state based on public/private
 avg.gradrate.public <- ddply(public.data, .(State), summarize, 
@@ -96,10 +104,6 @@ avg.gradrate.public <- ddply(public.data, .(State), summarize,
 
 avg.gradrate.private <- ddply(private.data, .(State), summarize,
                               Avg_gradrate=mean(Grad_rate))
-
-# Creates five-number summary of graduation rates
-summary(avg.gradrate.public$Avg_gradrate)
-summary(avg.gradrate.private$Avg_gradrate)
 
 # Creates bargraph of average graduation rate by state for public/private
 ggplot(avg.gradrate.public, aes(x=State, y=Avg_gradrate)) + 
@@ -113,13 +117,14 @@ ggplot(avg.gradrate.private, aes(x=State, y=Avg_gradrate)) +
   ggtitle("Average graduation rate for Private Universities")
 
 # Creates boxplot of tuition by school type
-ggplot(final.data, aes(x=School_type, y=Total_tuition, fill=School_type)) +
-  geom_boxplot() + xlab("School Type") + ylab("Total tuition") +
-  guides(fill=FALSE) + stat_summary(fun.y=mean, geom="point", shape=1, size=5)
+ggplot(final.data, aes(x=School_type, y=Instate_tuition, fill=School_type)) +
+  geom_boxplot() + xlab("School Type") + ylab("Instate tuition") +
+  guides(fill=FALSE) + stat_summary(fun.y=mean, geom="point", shape=1, size=5) +
+  ggtitle("Instate Tuition vs School Type")
 
-# Creates five-number summary of total tuition by school type
-summary(public.data$Total_tuition)
-summary(private.data$Total_tuition)
+# Creates five-number summary of instate tuition by school type 
+summary(public.data$Instate_tuition)
+summary(private.data$Instate_tuition)
 
 # Creates average instate/outstate tuition by state
 avg.tuition <- ddply(final.data, .(State), summarize, 
@@ -141,76 +146,53 @@ ggplot(tuition.long, aes(State, Tuition, fill=Tuition_Type)) +
   guides(fill=guide_legend(title="Tuition Type")) +
   coord_flip() + ggtitle("Instate/Outstate Tuition per State")
 
-# Investigative questions
+### Investigative questions ###
 
-# Can we explain tuition as a model of other variables?
+# Can we explain instate tuition as a model of other variables?
 
 # PUBLIC MODEL
-public.tuition.model <- lm(Total_tuition ~ Applications_received + Applicants_accepted +
+public.instate.tuition.model <- lm(Instate_tuition ~ Applications_received + Applicants_accepted +
                              New_students_enrolled + Fulltime_undergrads + Parttime_undergrads +
                              Room_board_costs + Additional_fees + 
                              Estimated_book_costs + Estimated_personal_spending + 
                              Percentage_faculty_Phd + Percentage_faculty_terminal_degree + 
                              Student_faculty_ratio + Percentage_alumni_donate +
                              Instructional_expenditure_per_student, data=public.data)
-summary(public.tuition.model)
+summary(public.instate.tuition.model)
 par(mfrow=c(2,2))
-plot(public.tuition.model)
+plot(public.instate.tuition.model)
 
 # PRIVATE MODEL
-private.tuition.model <- lm(Total_tuition ~ Applications_received + Applicants_accepted +
-                             New_students_enrolled + Fulltime_undergrads + Parttime_undergrads +
-                             Room_board_costs + Additional_fees + 
-                             Estimated_book_costs + Estimated_personal_spending + 
-                             Percentage_faculty_Phd + Percentage_faculty_terminal_degree + 
-                             Student_faculty_ratio + Percentage_alumni_donate +
-                             Instructional_expenditure_per_student, data=private.data)
-summary(private.tuition.model)
+private.instate.tuition.model <- lm(Instate_tuition ~ Applications_received + Applicants_accepted +
+                               New_students_enrolled + Fulltime_undergrads + Parttime_undergrads +
+                               Room_board_costs + Additional_fees + 
+                               Estimated_book_costs + Estimated_personal_spending + 
+                               Percentage_faculty_Phd + Percentage_faculty_terminal_degree + 
+                               Student_faculty_ratio + Percentage_alumni_donate +
+                               Instructional_expenditure_per_student, data=private.data)
+summary(private.instate.tuition.model)
 par(mfrow=c(2,2))
-plot(private.tuition.model)
-
-plot(private.data$Room_board_costs, log(private.data$Total_tuition))
-
-ggplot(private.data, aes(x=Room_board_costs, y=Total_tuition)) + 
-  geom_point() + 
-  geom_smooth(method=lm, se=FALSE, fullrange=TRUE) +
-  xlab("Percentage of faculty with PhD") + ylab("Total tuition per year")
-
-# OVERALL MODEL (???)
-
-# Creates a linear model of tuition versus other relevant variables
-tuition.model <- lm(Total_tuition ~ School_type + Applications_received + Applicants_accepted +
-                     New_students_enrolled + Fulltime_undergrads + Parttime_undergrads +
-                     Room_board_costs + Additional_fees + 
-                     Estimated_book_costs + Estimated_personal_spending + 
-                     Percentage_faculty_Phd + Percentage_faculty_terminal_degree + 
-                     Student_faculty_ratio + Percentage_alumni_donate +
-                     Instructional_expenditure_per_student, data=final.data)
-summary(tuition.model)
-par(mfrow=c(2,2))
-plot(tuition.model)  # Check model assumptions
+plot(private.instate.tuition.model)
 
 # Does higher student/faculty ratio affect instructional costs?
-# THIS MAKES SENSE
 
 # Calculates correlation between student/faculty ratio and instructional expenditure 
 cor(final.data$Student_faculty_ratio, final.data$Instructional_expenditure_per_student)
+
+# OVERALL MODEL
 instructional.ratio.model <- lm(Instructional_expenditure_per_student ~ Student_faculty_ratio, 
                                 data=final.data)
 summary(instructional.ratio.model)
-
-# Create dataframe for predicted values
-xmin <- min(final.data$Student_faculty_ratio)
-xmax <- max(final.data$Student_faculty_ratio)
-predicted.instructional <- data.frame(Student_faculty_ratio=seq(xmin, xmax, length.out=dim(final.data)[1]))
-predicted.instructional$Instructional_expenditure_per_student <- predict(instructional.ratio.model,
-                                                           predicted.instructional)
-predicted.instructional <- cbind(predicted.instructional, final.data$School_type)
+par(mfrow=c(2,2))
+plot(instructional.ratio.model)
 
 # Creates scatter plot of instructional expenditure vs student/faculty ratio
 ggplot(final.data, aes(x=Student_faculty_ratio, y=Instructional_expenditure_per_student,
                        colour=School_type)) + geom_point() +
   geom_smooth(method=lm, se=FALSE, fullrange=TRUE) +
+  geom_abline(aes(intercept=instructional.ratio.model$coefficients[1], 
+                  slope=instructional.ratio.model$coefficients[2],
+                  data=final.data)) +
   xlab("Student/faculty ratio") + ylab("Instructional expenditure per student")
 
 # Do higher instructional costs lead to higher graduation rates?
@@ -218,16 +200,39 @@ gradrate.model <- lm(Grad_rate ~ Instructional_expenditure_per_student,
                      data=final.data)
 summary(gradrate.model)
 
+# Creates scatter plot of instructional expenditure vs graduation rate
 ggplot(final.data, aes(x=Instructional_expenditure_per_student, y=Grad_rate)) + 
   geom_point() + 
   geom_smooth(method=lm, se=FALSE, fullrange=TRUE) +
   xlab("Instructional expenditure per student") + ylab("Graduation Rate")
 
-# Is the number of applications accepted based on school type and applications received
-accept.model <- lm(Applicants_accepted ~ School_type + Applications_received, data=final.data)
-summary(accept.model)
+# Can we predict the number of applications received
+pairs(~Applications_received + Fulltime_undergrads + Parttime_undergrads +
+        Instate_tuition + Outstate_tuition + Room_board_costs + Additional_fees + 
+        Estimated_book_costs + Estimated_personal_spending + Percentage_faculty_Phd +
+        Percentage_faculty_terminal_degree + Student_faculty_ratio + 
+        Percentage_alumni_donate + Instructional_expenditure_per_student + Grad_rate, 
+      data=no.id.data)
 
-model4 <- lm(New_students_enrolled ~ Instate_tuition + Outstate_tuition + Student_faculty_ratio +
-               Instructional_expenditure_per_student, data = final.data)
-summary(model4)
+pairs(~log(Applications_received) + Fulltime_undergrads + Parttime_undergrads +
+        Instate_tuition + Outstate_tuition + Room_board_costs + Additional_fees + 
+        Estimated_book_costs + Estimated_personal_spending + Percentage_faculty_Phd +
+        Percentage_faculty_terminal_degree + Student_faculty_ratio + 
+        Percentage_alumni_donate + Instructional_expenditure_per_student + Grad_rate, 
+      data=no.id.data)
 
+# Creates linear model of applications received
+app.received.model1 < - lm(Applications_received ~ . - Applicants_accepted - 
+                             New_students_enrolled - Room_costs - Board_costs - Total_tuition,
+                           data=no.id.data)
+summary(app.received.model1)
+par(mfrow=c(2,2))
+plot(app.received.model1)
+
+# Creates linear model of log-transformed applications received
+app.received.log.model1 <- lm(log(Applications_received) ~ . - Applicants_accepted - 
+                           New_students_enrolled - Room_costs - Board_costs - Total_tuition,
+                         data=no.id.data)
+summary(app.received.log.model1)
+par(mfrow=c(2,2))
+plot(app.received.log.model1)
