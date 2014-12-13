@@ -9,9 +9,10 @@ library(ggplot2)
 library(lattice)
 library(reshape2)
 library(plyr)
+library(MASS)
 
 ### Reading data ###
-usnews.data <- read.csv("C:/Users/Roger/Dropbox/STATS/20/Project/usnews.dat.txt", 
+usnews.data <- read.csv("C:/Users/Roger Chen/Dropbox/STATS/20/Project/usnews.dat.txt", 
                         header=F, na.strings="*")
 names <- c("FICE", "College name", "State", "School_type",
            "Average Math SAT score", "Average Verbal SAT score", "Average Combined SAT score",
@@ -150,6 +151,9 @@ ggplot(tuition.long, aes(State, Tuition, fill=Tuition_Type)) +
 
 # Can we explain instate tuition as a model of other variables?
 
+# t-test to compare public/private
+t.test(public.data$Instate_tuition, private.data$Instate_tuition)
+
 # PUBLIC MODEL
 public.instate.tuition.model <- lm(Instate_tuition ~ Applications_received + Applicants_accepted +
                              New_students_enrolled + Fulltime_undergrads + Parttime_undergrads +
@@ -161,6 +165,7 @@ public.instate.tuition.model <- lm(Instate_tuition ~ Applications_received + App
 summary(public.instate.tuition.model)
 par(mfrow=c(2,2))
 plot(public.instate.tuition.model)
+stepAIC(public.instate.tuition.model, direction="backward")  # Remove insignificant variables
 
 # PRIVATE MODEL
 private.instate.tuition.model <- lm(Instate_tuition ~ Applications_received + Applicants_accepted +
@@ -173,8 +178,9 @@ private.instate.tuition.model <- lm(Instate_tuition ~ Applications_received + Ap
 summary(private.instate.tuition.model)
 par(mfrow=c(2,2))
 plot(private.instate.tuition.model)
+stepAIC(private.instate.tuition.model, direction="backward")  # Remove insignificant variables
 
-# Does higher student/faculty ratio affect instructional costs?
+# Does a higher student/faculty ratio affect instructional costs?
 
 # Calculates correlation between student/faculty ratio and instructional expenditure 
 cor(final.data$Student_faculty_ratio, final.data$Instructional_expenditure_per_student)
